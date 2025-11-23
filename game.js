@@ -17,6 +17,8 @@ const playerLabel = document.getElementById('player-label');
 const highscoresList = document.getElementById('highscores');
 const finalHighscoresList = document.getElementById('final-highscores');
 const resetButton = document.getElementById('reset-button');
+const relaunchButton = document.getElementById('relaunch-button');
+const relaunchCountLabel = document.getElementById('relaunch-count');
 
 const startScreen = document.getElementById('start-screen');
 const gameUI = document.getElementById('game-ui');
@@ -40,6 +42,13 @@ let curves = [];
 let ball;
 let gameRunning = false;
 let countdownInterval;
+let relaunchCount = 0;
+const RELAUNCH_PENALTY = 0.15; // 15% del puntaje actual
+
+// Transformación del eje Y: (0,0) es la esquina inferior izquierda
+function toScreenY(y) {
+  return canvas.height - y;
+}
 
 // ---------------------- Entidades principales -----------------------------
 class Ball {
@@ -50,14 +59,14 @@ class Ball {
 
   reset() {
     this.x = canvas.width / 2;
-    this.y = 60;
+    this.y = canvas.height - 60;
     this.vx = 0;
     this.vy = 0;
   }
 
   update() {
-    // Aplicar gravedad
-    this.vy += gravity;
+    // Aplicar gravedad (eje Y crece hacia arriba, gravedad negativa)
+    this.vy -= gravity;
     // Actualizar posición
     this.x += this.vx;
     this.y += this.vy;
@@ -73,6 +82,10 @@ class Ball {
     }
     if (this.y + this.radius > canvas.height) {
       this.y = canvas.height - this.radius;
+      this.vy *= -0.8;
+    }
+    if (this.y - this.radius < 0) {
+      this.y = this.radius;
       this.vy *= -0.8;
     }
 
@@ -111,7 +124,7 @@ class Ball {
   draw() {
     ctx.beginPath();
     ctx.fillStyle = '#60a5fa';
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(this.x, toScreenY(this.y), this.radius, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -126,7 +139,7 @@ class Star {
 
   draw() {
     ctx.save();
-    ctx.translate(this.x, this.y);
+    ctx.translate(this.x, toScreenY(this.y));
     ctx.rotate(-Math.PI / 2);
     ctx.beginPath();
     for (let i = 0; i < 5; i++) {
@@ -177,8 +190,8 @@ function buildCurvePoints(fn) {
   for (let x = 0; x <= canvas.width; x += step) {
     let y = fn(x);
     if (!Number.isFinite(y)) continue;
-    // Limitar y al canvas para evitar saltos enormes
-    y = Math.max(-1000, Math.min(2000, y));
+    // Limitar y al canvas para evitar saltos enormes (eje positivo hacia arriba)
+    y = Math.max(0, Math.min(canvas.height, y));
     points.push({ x, y });
   }
   return points;
@@ -212,7 +225,9 @@ function spawnStars(count) {
   stars = [];
   for (let i = 0; i < count; i++) {
     const x = 50 + Math.random() * (canvas.width - 100);
-    const y = 120 + Math.random() * (canvas.height - 200);
+    const yMin = 80;
+    const yMax = canvas.height - 80;
+    const y = yMin + Math.random() * (yMax - yMin);
     stars.push(new Star(x, y));
   }
 }
@@ -284,8 +299,8 @@ function drawCurves() {
   curves.forEach(curve => {
     ctx.beginPath();
     curve.points.forEach((p, idx) => {
-      if (idx === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
+      if (idx === 0) ctx.moveTo(p.x, toScreenY(p.y));
+      else ctx.lineTo(p.x, toScreenY(p.y));
     });
     ctx.stroke();
   });
@@ -335,6 +350,8 @@ function resetGameState(selectedMode) {
   gravity = 0.35;
   starGoal = 5;
   ball.reset();
+  relaunchCount = 0;
+  relaunchCountLabel.textContent = relaunchCount;
   clearCurves();
   spawnStars(starGoal);
   scoreLabel.textContent = '0';
@@ -381,6 +398,16 @@ function endGame() {
   updateHighscores(score);
 }
 
+function handleRelaunch() {
+  if (!gameRunning) return;
+  ball.reset();
+  relaunchCount += 1;
+  const deduction = Math.floor(score * RELAUNCH_PENALTY);
+  score = Math.max(0, score - deduction);
+  scoreLabel.textContent = score;
+  relaunchCountLabel.textContent = relaunchCount;
+}
+
 // ---------------------- Eventos de UI ------------------------------------
 plotButton.addEventListener('click', () => {
   if (!equationInput.value.trim()) return;
@@ -396,6 +423,8 @@ equationInput.addEventListener('keypress', e => {
 clearCurvesButton.addEventListener('click', () => {
   clearCurves();
 });
+
+relaunchButton.addEventListener('click', handleRelaunch);
 
 freeModeBtn.addEventListener('click', () => startGame('free'));
 timedModeBtn.addEventListener('click', () => startGame('timed'));
