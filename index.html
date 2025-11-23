@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curvas Matemáticas</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="start-screen" class="panel">
+    <h1>Curvas Matemáticas</h1>
+    <label for="player-name">Nombre del jugador:</label>
+    <input id="player-name" type="text" placeholder="Escribe tu nombre">
+    <div class="mode-buttons">
+      <button id="free-mode">Juego Libre</button>
+      <button id="timed-mode">Juego con Tiempo</button>
+    </div>
+  </div>
+
+  <div id="game-ui" class="hidden">
+    <div class="top-bar">
+      <div>Jugador: <span id="player-label"></span></div>
+      <div>Puntaje: <span id="score-label">0</span></div>
+      <div id="timer-area" class="hidden">Tiempo: <span id="timer-label">0</span>s</div>
+      <button id="reset-button">Volver al menú</button>
+    </div>
+    <canvas id="game-canvas" width="900" height="600"></canvas>
+    <div class="controls">
+      <input id="equation-input" type="text" placeholder="Ej: y = -0.01*(x-200)^2 + 400">
+      <button id="plot-button">Graficar</button>
+      <button id="clear-curves">Limpiar curvas</button>
+    </div>
+    <div class="info">
+      <div>
+        <h3>Curvas activas</h3>
+        <ul id="curves-list"></ul>
+      </div>
+      <div>
+        <h3>Ranking</h3>
+        <ol id="highscores"></ol>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-over" class="panel hidden">
+    <h2>Fin de la partida</h2>
+    <p>Puntaje final: <span id="final-score">0</span></p>
+    <h3>Ranking de mejores puntajes</h3>
+    <ol id="final-highscores"></ol>
+    <button id="back-to-menu">Volver al menú</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
