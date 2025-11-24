@@ -108,14 +108,15 @@ class Ball {
         if (!collision) continue;
         const { closestX, closestY, distance } = collision;
         if (distance < this.radius) {
-          // Normal de la superficie
-          const nx = p2.y - p1.y;
-          const ny = -(p2.x - p1.x);
-          const len = Math.hypot(nx, ny) || 1;
-          const normalX = nx / len;
-          const normalY = ny / len;
+          // Usamos una normal que apunte desde la curva hacia la pelota para
+          // evitar depender de la orientación del segmento y garantizar rebote.
+          let normalX = this.x - closestX;
+          let normalY = this.y - closestY;
+          const len = Math.hypot(normalX, normalY) || 1;
+          normalX /= len;
+          normalY /= len;
 
-          // Solo reaccionar si nos movemos hacia la normal
+          // Solo reaccionar si nos movemos hacia la curva
           const vn = this.vx * normalX + this.vy * normalY;
           if (vn < 0) {
             const penetration = this.radius - distance;
