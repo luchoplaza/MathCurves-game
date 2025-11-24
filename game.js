@@ -67,31 +67,35 @@ class Ball {
   }
 
   update() {
-    // Aplicar gravedad (eje Y crece hacia arriba, gravedad negativa)
-    this.vy -= gravity;
-    // Actualizar posición
-    this.x += this.vx;
-    this.y += this.vy;
+    // Usamos sub-steps pequeños para evitar que atraviese curvas a alta velocidad
+    const subSteps = 2;
+    for (let i = 0; i < subSteps; i++) {
+      // Aplicar gravedad (eje Y crece hacia arriba, gravedad negativa)
+      this.vy -= gravity / subSteps;
+      // Actualizar posición
+      this.x += this.vx / subSteps;
+      this.y += this.vy / subSteps;
 
-    // Colisión con bordes del canvas
-    if (this.x - this.radius < 0) {
-      this.x = this.radius;
-      this.vx *= -0.8;
-    }
-    if (this.x + this.radius > canvas.width) {
-      this.x = canvas.width - this.radius;
-      this.vx *= -0.8;
-    }
-    if (this.y + this.radius > canvas.height) {
-      this.y = canvas.height - this.radius;
-      this.vy *= -0.8;
-    }
-    if (this.y - this.radius < 0) {
-      this.y = this.radius;
-      this.vy *= -0.8;
-    }
+      // Colisión con bordes del canvas
+      if (this.x - this.radius < 0) {
+        this.x = this.radius;
+        this.vx *= -0.8;
+      }
+      if (this.x + this.radius > canvas.width) {
+        this.x = canvas.width - this.radius;
+        this.vx *= -0.8;
+      }
+      if (this.y + this.radius > canvas.height) {
+        this.y = canvas.height - this.radius;
+        this.vy *= -0.8;
+      }
+      if (this.y - this.radius < 0) {
+        this.y = this.radius;
+        this.vy *= -0.8;
+      }
 
-    this.handleCurveCollisions();
+      this.handleCurveCollisions();
+    }
   }
 
   handleCurveCollisions() {
@@ -100,23 +104,38 @@ class Ball {
       for (let i = 0; i < curve.points.length - 1; i++) {
         const p1 = curve.points[i];
         const p2 = curve.points[i + 1];
-        const dist = pointToSegmentDistance(this.x, this.y, p1.x, p1.y, p2.x, p2.y);
-        if (dist < this.radius) {
-          // Vector normal aproximado
+        const collision = nearestPointOnSegment(this.x, this.y, p1.x, p1.y, p2.x, p2.y);
+        if (!collision) continue;
+        const { closestX, closestY, distance } = collision;
+        if (distance < this.radius) {
+          // Normal de la superficie
           const nx = p2.y - p1.y;
           const ny = -(p2.x - p1.x);
           const len = Math.hypot(nx, ny) || 1;
           const normalX = nx / len;
           const normalY = ny / len;
 
-          // Reflejar velocidad para simular rebote suave
-          const dot = this.vx * normalX + this.vy * normalY;
-          this.vx = this.vx - 1.6 * dot * normalX;
-          this.vy = this.vy - 1.6 * dot * normalY;
+          // Solo reaccionar si nos movemos hacia la normal
+          const vn = this.vx * normalX + this.vy * normalY;
+          if (vn < 0) {
+            const penetration = this.radius - distance;
+            // Separar la pelota para que no atraviese la curva
+            this.x += normalX * penetration;
+            this.y += normalY * penetration;
 
-          // Pequeño desplazamiento para evitar quedar atrapada
-          this.x += normalX * (this.radius - dist);
-          this.y += normalY * (this.radius - dist);
+            // Rebote con restitución moderada
+            const restitution = 0.85;
+            this.vx -= (1 + restitution) * vn * normalX;
+            this.vy -= (1 + restitution) * vn * normalY;
+
+            // Fricción tangencial para estabilizar
+            const tx = -normalY;
+            const ty = normalX;
+            const vt = this.vx * tx + this.vy * ty;
+            const friction = 0.2;
+            this.vx -= friction * vt * tx;
+            this.vy -= friction * vt * ty;
+          }
           break;
         }
       }
@@ -169,6 +188,23 @@ function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
   const projX = x1 + t * dx;
   const projY = y1 + t * dy;
   return Math.hypot(px - projX, py - projY);
+}
+
+function nearestPointOnSegment(px, py, x1, y1, x2, y2) {
+  // Devuelve el punto más cercano en el segmento y la distancia resultante
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) {
+    const distance = Math.hypot(px - x1, py - y1);
+    return { closestX: x1, closestY: y1, distance };
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / lengthSq;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  const distance = Math.hypot(px - closestX, py - closestY);
+  return { closestX, closestY, distance };
 }
 
 function parseEquation(equationText) {
