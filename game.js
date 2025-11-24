@@ -45,9 +45,11 @@ let countdownInterval;
 let relaunchCount = 0;
 const RELAUNCH_PENALTY = 0.15; // 15% del puntaje actual
 
-// Transformación del eje Y: (0,0) es la esquina inferior izquierda
-function toScreenY(y) {
-  return canvas.height - y;
+// Transformación del eje Y: (0,0) es la esquina inferior izquierda.
+// Usamos una matriz de transformación al dibujar para que las coordenadas
+// lógicas coincidan con el eje Y positivo hacia arriba.
+function applyWorldTransform() {
+  ctx.setTransform(1, 0, 0, -1, 0, canvas.height);
 }
 
 // ---------------------- Entidades principales -----------------------------
@@ -124,7 +126,7 @@ class Ball {
   draw() {
     ctx.beginPath();
     ctx.fillStyle = '#60a5fa';
-    ctx.arc(this.x, toScreenY(this.y), this.radius, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -139,7 +141,7 @@ class Star {
 
   draw() {
     ctx.save();
-    ctx.translate(this.x, toScreenY(this.y));
+    ctx.translate(this.x, this.y);
     ctx.rotate(-Math.PI / 2);
     ctx.beginPath();
     for (let i = 0; i < 5; i++) {
@@ -299,8 +301,8 @@ function drawCurves() {
   curves.forEach(curve => {
     ctx.beginPath();
     curve.points.forEach((p, idx) => {
-      if (idx === 0) ctx.moveTo(p.x, toScreenY(p.y));
-      else ctx.lineTo(p.x, toScreenY(p.y));
+      if (idx === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
     });
     ctx.stroke();
   });
@@ -313,15 +315,19 @@ function drawStars() {
 }
 
 function update() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!gameRunning) return;
 
   ball.update();
   checkStarCollisions();
 
+  ctx.save();
+  applyWorldTransform();
   drawCurves();
   drawStars();
   ball.draw();
+  ctx.restore();
 
   animationId = requestAnimationFrame(update);
 }
@@ -406,6 +412,9 @@ function handleRelaunch() {
   score = Math.max(0, score - deduction);
   scoreLabel.textContent = score;
   relaunchCountLabel.textContent = relaunchCount;
+  // Garantizar que el bucle siga activo después de relanzar
+  cancelAnimationFrame(animationId);
+  animationId = requestAnimationFrame(update);
 }
 
 // ---------------------- Eventos de UI ------------------------------------
